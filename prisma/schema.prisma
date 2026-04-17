@@ -4,8 +4,11 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  // ReferenceError: exports is not defined in ES module scope
+  // To fix the error above that nestjs shows.
+  moduleFormat = "cjs"
 }
 
 datasource db {
@@ -14,7 +17,7 @@ datasource db {
 
 model User {
   id                  String   @id @db.Uuid()
-  name                String
+  name                String   @unique
   gender              String
   gender_probability  Decimal
   sample_size         Int
