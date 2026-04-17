@@ -11,7 +11,7 @@ import {
   NationalizeAPIResponseType,
   ProcessPostRequestFunctionType,
 } from './app.type';
-import { v7 as uuidv7 } from 'uuid';
+import { uuidv7 } from 'uuidv7';
 import { DatabaseRepository } from './app.repository';
 
 @Injectable()
