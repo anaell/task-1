@@ -9,6 +9,10 @@ generator client {
   // ReferenceError: exports is not defined in ES module scope
   // To fix the error above that nestjs shows.
   moduleFormat = "cjs"
+
+  // Vercel's serverless functions run on a specific Linux environment (Amazon Linux/RHEL). You must explicitly tell Prisma to include the correct binary engine.
+  // Add this line for Vercel compatibility
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
