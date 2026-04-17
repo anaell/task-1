@@ -1,98 +1,245 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Project README
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+## Profile Intelligence Service
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+**Purpose**  
+A small RESTful service that accepts a name, enriches it using Genderize, Agify, and Nationalize, persists the processed profile, and exposes endpoints to create, retrieve, list, filter, and delete profiles. This README explains the API contract, data model, error handling, idempotency rules, setup, and examples so you can run and submit the task.
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+### Features
 
-## Project setup
+- **Integrates three external APIs**: Genderize, Agify, Nationalize (no API keys required).
+- **Processes and normalizes** responses into a single profile record.
+- **Persists** profiles in a database with **UUID v7** ids and **UTC ISO 8601** timestamps.
+- **Idempotent creation** by name (case-insensitive).
+- **Filtering** on gender, country_id, and age_group.
+- **CORS header** `Access-Control-Allow-Origin: *` included for grading script access.
+- **Consistent JSON responses** matching the required structure.
 
-```bash
-$ pnpm install
+---
+
+### Tech Stack
+
+- **Language**: Node.js
+- **Database**: PostgreSQL
+- **HTTP**: Express
+- **Deployment**: Vercel
+
+---
+
+### Data Model
+
+**profiles** table (example columns)
+
+- **id** — UUID v7 string, primary key
+- **name** — string, original name submitted (stored lowercase for idempotency)
+- **gender** — string or null
+- **gender_probability** — decimal
+- **sample_size** — integer
+- **age** — integer
+- **age_group** — string;
+- **country_id** — ISO country code string (top probability from Nationalize)
+- **country_probability** — decimal
+- **created_at** — UTC ISO 8601 timestamp
+
+**Idempotency rule**  
+Profiles are unique by **name** (case-insensitive). If a name already exists, the POST returns the existing profile with a message `"Profile already exists"` and does not create a new record.
+
+---
+
+### API Endpoints
+
+| Method | Endpoint           |                               Description | Success Code | Notes                                             |
+| ------ | ------------------ | ----------------------------------------: | -----------: | ------------------------------------------------- |
+| POST   | /api/profiles      | Create or return existing profile by name |   201 or 200 | Body: `{ "name": "ella" }`                        |
+| GET    | /api/profiles/{id} |                  Retrieve a profile by id |          200 | Returns full profile                              |
+| GET    | /api/profiles      |       List profiles with optional filters |          200 | Query params: `gender`, `country_id`, `age_group` |
+| DELETE | /api/profiles/{id} |                          Delete a profile |          204 | No content on success                             |
+
+---
+
+### Request and Response Examples
+
+## Create profile
+
+Request:
+
+```http
+POST /api/profiles
+Content-Type: application/json
+
+{ "name": "ella" }
 ```
 
-## Compile and run the project
+Success response when created (201):
 
-```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+```json
+{
+  "status": "success",
+  "data": {
+    "id": "b3f9c1e2-7d4a-4c91-9c2a-1f0a8e5b6d12",
+    "name": "ella",
+    "gender": "female",
+    "gender_probability": 0.99,
+    "sample_size": 1234,
+    "age": 46,
+    "age_group": "adult",
+    "country_id": "DRC",
+    "country_probability": 0.85,
+    "created_at": "2026-04-01T12:00:00Z"
+  }
+}
 ```
 
-## Run tests
+Idempotent response when profile exists (200):
 
-```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+```json
+{
+  "status": "success",
+  "message": "Profile already exists",
+  "data": {
+    "...existing profile..."
+  }
+}
 ```
 
-## Deployment
+## Get profile by id
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Request:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+```http
+GET /api/profiles/b3f9c1e2-7d4a-4c91-9c2a-1f0a8e5b6d12
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Response (200):
 
-## Resources
+```json
+{
+  "status": "success",
+  "data": {
+    "id": "b3f9c1e2-7d4a-4c91-9c2a-1f0a8e5b6d12",
+    "name": "emmanuel",
+    "gender": "male",
+    "gender_probability": 0.99,
+    "sample_size": 1234,
+    "age": 25,
+    "age_group": "adult",
+    "country_id": "NG",
+    "country_probability": 0.85,
+    "created_at": "2026-04-01T12:00:00Z"
+  }
+}
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+## List profiles with filters
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Request:
 
-## Support
+```http
+GET /api/profiles?gender=male&country_id=NG
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+Response (200):
 
-## Stay in touch
+```json
+{
+  "status": "success",
+  "count": 2,
+  "data": [
+    {
+      "id": "id-1",
+      "name": "emmanuel",
+      "gender": "male",
+      "age": 25,
+      "age_group": "adult",
+      "country_id": "NG"
+    },
+    {
+      "id": "id-2",
+      "name": "sarah",
+      "gender": "female",
+      "age": 28,
+      "age_group": "adult",
+      "country_id": "US"
+    }
+  ]
+}
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## Delete profile
 
-## License
+Request:
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+```http
+DELETE /api/profiles/b3f9c1e2-7d4a-4c91-9c2a-1f0a8e5b6d12
+```
+
+Response: `204 No Content`
+
+---
+
+### Error Handling and Edge Cases
+
+All error responses follow:
+
+```json
+{ "status": "error", "message": "<error message>" }
+```
+
+- **400 Bad Request** — Missing or empty `name` in POST.
+- **422 Unprocessable Entity** — Invalid type for `name` (non-string).
+- **404 Not Found** — GET/DELETE for unknown `id`.
+- **502 Bad Gateway** — External API returned invalid or incomplete data. Response structure:
+
+```json
+{ "status": "502", "message": "Genderize returned an invalid response" }
+```
+
+Possible 502 triggers:
+
+- Genderize returns `gender: null` or `count: 0`.
+- Agify returns `age: null`.
+- Nationalize returns no country data.
+- **500 Internal Server Error** — Unexpected server errors.
+
+## Validation rules
+
+- `name` must be a non-empty string.
+- External API failures are surfaced as 502 with the external API name.
+
+---
+
+### Processing Rules Summary
+
+1. Call all three APIs with the provided name.
+2. From Genderize extract: `gender`, `probability` → **rename** `count` to `sample_size`.
+3. From Agify extract: `age`. Compute `age_group`:
+   - `0–12` → `child`
+   - `13–19` → `teenager`
+   - `20–59` → `adult`
+   - `60+` → `senior`
+4. From Nationalize extract country list; pick the country with the highest probability as `country_id` and include `country_probability`.
+5. If any API returns invalid data per Edge Case rules, return 502 and do not store.
+6. Store the processed result with **UUID v7** id and **UTC created_at** timestamp.
+
+---
+
+### Setup and Run Instructions
+
+## Environment variables
+
+- **DATABASE_URL** — connection string for your DB (Postgres/SQLite).
+- **PORT** — port to run the server (default 3000).
+- **NODE_ENV** — optional.
+
+## Install and run (example Node.js)
+
+```bash
+git clone <repo-url>
+cd <repo>
+pnpm install
+# set env vars, e.g. export DATABASE_URL=sqlite://./db.sqlite
+pnpm dlx prisma migrate
+pnpm start:dev
+```

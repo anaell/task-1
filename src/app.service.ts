@@ -127,9 +127,10 @@ export class AppService {
   }
 
   async ProcessPostRequestFunction(
-    name: string,
+    profileName: string,
   ): Promise<ProcessPostRequestFunctionType | any> {
     try {
+      const name = profileName.toLowerCase();
       const userExists = await this.databaseRepository.checkUserExists(name);
 
       if (userExists) {
