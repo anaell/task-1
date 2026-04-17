@@ -1,7 +1,7 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { createUserType, fetchUsersWithOptionalFiltersType } from './app.type';
-import { prisma } from 'lib/prisma';
-import { User } from 'generated/prisma/client';
+import { prisma } from '../lib/prisma';
+import { User } from '../generated/prisma/client';
 
 @Injectable()
 export class DatabaseRepository {
