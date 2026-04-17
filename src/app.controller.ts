@@ -42,7 +42,7 @@ export class AppController {
   }
 
   @HttpCode(204)
-  @Delete('profiles/id')
+  @Delete('profiles/:id')
   async deleteProfile(@Param('id') id: string) {
     this.appService.DeleteProfileFunction(id);
   }

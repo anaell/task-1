@@ -23,7 +23,7 @@ export class AppService {
   ): Promise<GenderizeAPIResponseType> {
     try {
       const genderize_response = await fetch(
-        ` https://api.genderize.io?name=${name}`,
+        `https://api.genderize.io?name=${name}`,
       );
 
       if (!genderize_response.ok) {
@@ -93,7 +93,7 @@ export class AppService {
   ): Promise<NationalizeAPIResponseType> {
     try {
       const nationalize_response = await fetch(
-        ` https://api.nationalize.io?name=${name}`,
+        `https://api.nationalize.io?name=${name}`,
       );
 
       if (!nationalize_response.ok) {
@@ -203,7 +203,8 @@ export class AppService {
 
   async ProcessGetProfileUsingId(id: string) {
     try {
-      const checkUserExists = await this.databaseRepository.checkUserExists(id);
+      const checkUserExists =
+        await this.databaseRepository.checkUserExistsWithId(id);
       if (!checkUserExists) {
         throw new NotFoundException({
           status: 'error',
@@ -225,7 +226,8 @@ export class AppService {
 
   async DeleteProfileFunction(id: string) {
     try {
-      const checkUserExists = await this.databaseRepository.checkUserExists(id);
+      const checkUserExists =
+        await this.databaseRepository.checkUserExistsWithId(id);
       if (!checkUserExists) {
         throw new NotFoundException({
           status: 'error',

@@ -31,6 +31,19 @@ export class DatabaseRepository {
     }
   }
 
+  async checkUserExistsWithId(id: string): Promise<boolean> {
+    try {
+      const userExists = await prisma.user.findFirst({ where: { id } });
+
+      return !!userExists;
+    } catch (error) {
+      throw new InternalServerErrorException({
+        status: 'error',
+        message: 'Database could not be reached. Try again later.',
+      });
+    }
+  }
+
   async fetchUserByName(name: string): Promise<User | null> {
     try {
       const user = await prisma.user.findFirst({ where: { name } });
@@ -72,7 +85,7 @@ export class DatabaseRepository {
     gender?: string,
     country_id?: string,
     age_group?: string,
-  ) {
+  ): Promise<fetchUsersWithOptionalFiltersType[]> {
     try {
       // To build 'where' dynamically
       const where: any = {};
