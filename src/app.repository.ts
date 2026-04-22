@@ -1,7 +1,13 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { createUserType, fetchUsersWithOptionalFiltersType } from './app.type';
+import {
+  AgeGroup,
+  createUserType,
+  fetchUsersWithOptionalFiltersType,
+  Gender,
+} from './app.type';
 import { prisma } from '../lib/prisma';
-import { User } from '../generated/prisma/client';
+import { Profile, User } from '../generated/prisma/client';
+import { FetchProfilesDto } from './app.dto';
 
 @Injectable()
 export class DatabaseRepository {
@@ -82,48 +88,94 @@ export class DatabaseRepository {
   }
 
   async fetchUsersWithOptionalFilters(
-    gender?: string,
-    country_id?: string,
-    age_group?: string,
-  ): Promise<fetchUsersWithOptionalFiltersType[]> {
+    dto: FetchProfilesDto,
+    // gender?: Gender,
+    // country_id?: string,
+    // age_group?: AgeGroup,
+    // min_age?: number,
+    // max_age?: number,
+    // min_gender_probability?: number,
+    // min_country_probability?: number,
+  ): Promise<{ data: Profile[]; total: number; page: number; limit: number }> {
     try {
       // To build 'where' dynamically
+      // const where: any = {};
+
+      // if (gender) {
+      //   where.gender = {
+      //     equals: gender,
+      //     mode: 'insensitive',
+      //   };
+      // }
+
+      // if (country_id) {
+      //   where.country_id = {
+      //     equals: country_id,
+      //     mode: 'insensitive',
+      //   };
+      // }
+
+      // if (age_group) {
+      //   where.age_group = {
+      //     equals: age_group,
+      //     mode: 'insensitive',
+      //   };
+      // }
+
       const where: any = {};
 
-      if (gender) {
-        where.gender = {
-          equals: gender,
-          mode: 'insensitive',
+      if (dto.gender) where.gender = dto.gender;
+      if (dto.country_id)
+        where.country_id = { equals: dto.country_id, mode: 'insensitive' };
+      if (dto.age_group) where.age_group = dto.age_group;
+
+      if (dto.min_age || dto.max_age) {
+        where.age = {
+          gte: dto.min_age,
+          lte: dto.max_age,
         };
       }
 
-      if (country_id) {
-        where.country_id = {
-          equals: country_id,
-          mode: 'insensitive',
-        };
+      if (dto.min_gender_probability) {
+        where.gender_probability = { gte: dto.min_gender_probability };
       }
 
-      if (age_group) {
-        where.age_group = {
-          equals: age_group,
-          mode: 'insensitive',
-        };
+      if (dto.min_country_probability) {
+        where.country_probability = { gte: dto.min_country_probability };
       }
 
-      const users = await prisma.user.findMany({
-        where,
-        select: {
-          id: true,
-          name: true,
-          gender: true,
-          age: true,
-          age_group: true,
-          country_id: true,
-        },
-      });
+      const orderBy = dto.sort_by
+        ? {
+            [dto.sort_by]: dto.order ?? 'asc',
+          }
+        : undefined;
 
-      return users;
+      const page = dto.page ?? 1;
+      const limit = Math.min(dto.limit ?? 10, 50);
+
+      const skip = (page - 1) * limit;
+
+      const [data, total] = await prisma.$transaction([
+        prisma.profile.findMany({
+          where,
+          orderBy,
+          skip,
+          take: limit,
+        }),
+        prisma.profile.count({ where }),
+      ]);
+
+      return { data, total, page, limit };
+      // const profiles = await prisma.profile.findMany({
+      //   where,
+      // });
+
+      // const profiles = await prisma.profile.findMany({
+      //   where,
+      //   orderBy: {},
+      // });
+
+      // return profiles;
     } catch (error) {
       throw new InternalServerErrorException({
         status: 'error',

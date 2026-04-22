@@ -34,10 +34,16 @@ async function bootstrap() {
 
         // The below is to Check which constraint failed and then send an appropriate error response
         // 'isString' corresponds to the @IsString decorator
-        if (errors[0].constraints?.isString) {
+        if (
+          errors[0].constraints?.isString ||
+          errors[0].constraints?.isEnum ||
+          errors[0].constraints?.isNumber
+        ) {
           return new UnprocessableEntityException({
             status: 'error',
-            message: message,
+            // The below was adjusted for task-2
+            // message: message,
+            message: 'Invalid query parameters',
           });
         }
 

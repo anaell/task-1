@@ -1,18 +1,25 @@
 import {
   BadGatewayException,
+  BadRequestException,
   HttpException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import {
+  AgeGroup,
   AgifyAPIResponseType,
+  Gender,
   GenderizeAPIResponseType,
   NationalizeAPIResponseType,
+  Order,
   ProcessPostRequestFunctionType,
+  SortBy,
 } from './app.type';
 import { uuidv7 } from 'uuidv7';
 import { DatabaseRepository } from './app.repository';
+import { FetchProfilesDto } from './app.dto';
+import { parseSearchQuery } from './utils/queryparserfunction';
 
 @Injectable()
 export class AppService {
@@ -245,19 +252,76 @@ export class AppService {
     }
   }
 
+  // The code below is an adjustment for task-2
   async GetAllProfileWithOptionalFilters(
-    gender?: string,
-    country_id?: string,
-    age_group?: string,
+    params: FetchProfilesDto,
+    // gender?: Gender,
+    // country_id?: string,
+    // age_group?: AgeGroup,
+    // min_age?: number,
+    // max_age?: number,
+    // min_gender_probability?: number,
+    // min_country_probability?: number,
+    // sort_by?: SortBy,
+    // order?: Order,
+    // page?: number,
+    // limit?: number,
   ) {
     try {
-      const users = await this.databaseRepository.fetchUsersWithOptionalFilters(
-        gender?.toLowerCase(),
-        country_id?.toLowerCase(),
-        age_group?.toLowerCase(),
-      );
+      const profiles =
+        await this.databaseRepository.fetchUsersWithOptionalFilters(
+          params,
+          // params.gender,
+          // params.country_id?.toLowerCase(),
+          // params.age_group,
+          // params.min_age,
+          // params.max_age,
+          // params.min_gender_probability,
+          // params.min_country_probability,
+        );
 
-      return { status: 'success', count: users.length, data: users };
+      return {
+        status: 'success',
+        page: params.page,
+        limit: params.limit,
+        total: profiles.total,
+        data: profiles.data,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+
+      throw new InternalServerErrorException({
+        status: 'error',
+        message: 'Something went wrong try again later.',
+      });
+    }
+  }
+
+  async NaturalLanguageQueryService(q: string) {
+    try {
+      const query = q.toLowerCase().trim();
+
+      const parsed_query = parseSearchQuery(query);
+
+      if (!parsed_query) {
+        throw new BadRequestException({
+          status: 'error',
+          message: 'Unable to interpret query',
+        });
+      }
+
+      const data =
+        await this.databaseRepository.fetchUsersWithOptionalFilters(
+          parsed_query,
+        );
+
+      return {
+        status: 'success',
+        page: data.page,
+        limit: data.limit,
+        total: data.total,
+        data: data.data,
+      };
     } catch (error) {
       if (error instanceof HttpException) throw error;
 
