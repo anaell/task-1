@@ -18,7 +18,7 @@ import {
 } from './app.type';
 import { uuidv7 } from 'uuidv7';
 import { DatabaseRepository } from './app.repository';
-import { FetchProfilesDto } from './app.dto';
+import { FetchProfilesDto, NaturalLanguageSearchQueryDto } from './app.dto';
 import { parseSearchQuery } from './utils/queryparserfunction';
 
 @Injectable()
@@ -282,8 +282,8 @@ export class AppService {
 
       return {
         status: 'success',
-        page: params.page,
-        limit: params.limit,
+        page: profiles.page,
+        limit: profiles.limit,
         total: profiles.total,
         data: profiles.data,
       };
@@ -297,11 +297,13 @@ export class AppService {
     }
   }
 
-  async NaturalLanguageQueryService(q: string) {
+  async NaturalLanguageQueryService(q: string, page?: number, limit?: number) {
     try {
-      const query = q.toLowerCase().trim();
+      console.log('Service speaking here. Natural language query received.');
 
-      const parsed_query = parseSearchQuery(query);
+      const received_query = q.toLowerCase().trim();
+
+      const parsed_query = parseSearchQuery(received_query, limit, page);
 
       if (!parsed_query) {
         throw new BadRequestException({
@@ -309,6 +311,8 @@ export class AppService {
           message: 'Unable to interpret query',
         });
       }
+
+      console.log('About to request to the DB.');
 
       const data =
         await this.databaseRepository.fetchUsersWithOptionalFilters(

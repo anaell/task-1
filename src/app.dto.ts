@@ -82,3 +82,17 @@ export class FetchProfilesDto {
   @IsNumber()
   limit?: number;
 }
+
+export class NaturalLanguageSearchQueryDto {
+  @IsString({ message: 'q must be a string' })
+  @IsNotEmpty({ message: 'q cannot be empty' })
+  q!: string;
+
+  @IsNumber()
+  @IsOptional()
+  page?: number;
+
+  @IsNumber()
+  @IsOptional()
+  limit?: number;
+}

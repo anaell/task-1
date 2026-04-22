@@ -10,7 +10,11 @@ import {
   Query,
 } from '@nestjs/common';
 import { AppService } from './app.service';
-import { FetchProfilesDto, PostRequestDTO } from './app.dto';
+import {
+  FetchProfilesDto,
+  NaturalLanguageSearchQueryDto,
+  PostRequestDTO,
+} from './app.dto';
 
 @Controller('api')
 export class AppController {
@@ -63,6 +67,17 @@ export class AppController {
     );
   }
 
+  @Get('profiles/search')
+  async QuerySearchFunction(@Query() query: NaturalLanguageSearchQueryDto) {
+    console.log('profile/search was hit.  Controller speaking here.');
+
+    return this.appService.NaturalLanguageQueryService(
+      query.q,
+      query.page,
+      query.limit,
+    );
+  }
+
   @Get('profiles/:id')
   async fetchSingleProfile(@Param('id') id: string) {
     return this.appService.ProcessGetProfileUsingId(id);
@@ -72,10 +87,5 @@ export class AppController {
   @Delete('profiles/:id')
   async deleteProfile(@Param('id') id: string) {
     this.appService.DeleteProfileFunction(id);
-  }
-
-  @Get('profiles/search')
-  async QuerySearchFunction(@Query('q') q: string) {
-    return this.appService.NaturalLanguageQueryService(q);
   }
 }
