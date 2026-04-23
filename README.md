@@ -243,3 +243,136 @@ pnpm install
 pnpm dlx prisma migrate
 pnpm start:dev
 ```
+
+### Natural Language Query Parser
+
+---
+
+#### Overview
+
+**Endpoint**: `/api/profiles/search`  
+**Purpose**: Support rule-based natural language queries by parsing plain English into structured filters for the database query engine.  
+**Implementation**: Fully deterministic and rule-based — **no AI, no machine learning, no external NLP services**.
+
+---
+
+#### Parsing Strategy
+
+The parser processes the query in the following order.
+
+1. **Normalization**
+   - Converts input to lowercase
+   - Trims whitespace
+
+   **Example**
+
+   ```txt
+   "Young Males from Nigeria" → "young males from nigeria"
+   ```
+
+2. **Gender Detection**
+   - `male` → **gender = male**
+   - `female` → **gender = female**
+   - If both appear → **gender ignored** (ambiguous)
+
+3. **Age Interpretation**
+   - **Keyword based**
+     - `young` → **min_age = 16; max_age = 24**
+   - **Numeric rules**
+     - `above 30` → **min_age = 30**
+     - `below 20` → **max_age = 20**
+   - **Precedence**: Explicit numeric rules override keyword based rules
+
+4. **Age Group Mapping**
+   - `child` → **age_group = child**
+   - `teenager` → **age_group = teenager**
+   - `adult` → **age_group = adult**
+   - `senior` → **age_group = senior**
+
+5. **Country Detection**  
+   Country detection is handled in two layers.
+   - **Alias Matching**
+     - `usa`, `america` → **US**
+     - `uk`, `britain` → **GB**
+
+   - **Official Country Names**
+     - Uses the `i18n-iso-countries` library to match names
+     - `nigeria` → **NG**
+     - `kenya` → **KE**
+
+   - **Safety**: Word boundary regex matching is used to avoid incorrect matches such as `niger` vs `nigeria`
+
+6. **Filter Construction**  
+   Parsed values are converted into a filter object and passed to the database query layer.
+
+   **Example**  
+   Query: `young males from nigeria`
+
+   ```json
+   {
+     "gender": "male",
+     "min_age": 16,
+     "max_age": 24,
+     "country_id": "NG"
+   }
+   ```
+
+---
+
+#### Example Mappings
+
+| **Query**                            | **Parsed Filters**                             |
+| ------------------------------------ | ---------------------------------------------- |
+| "young males"                        | gender=male; min_age=16; max_age=24            |
+| "females above 30"                   | gender=female; min_age=30                      |
+| "people from angola"                 | country_id=AO                                  |
+| "adult males from kenya"             | gender=male; age_group=adult; country_id=KE    |
+| "male and female teenagers above 17" | age_group=teenager; min_age=17; gender ignored |
+
+---
+
+#### Limitations
+
+This parser is intentionally rule based and has the following limitations.
+
+1. **Limited Vocabulary**
+   - Only predefined keywords are recognized
+   - Example supported keyword: `young`
+   - Unsupported terms: `youth`; `elderly`; `middle-aged`
+
+2. **No Synonym Understanding**
+   - Informal synonyms are not recognized
+   - `guys` → not recognized as male
+   - `ladies` → not recognized as female
+
+3. **No Context Awareness**
+   - The parser does not interpret sentence structure or negation
+   - `males not from nigeria` → `not` is ignored
+
+4. **Single Country Detection**
+   - Only one country is extracted
+   - `people from nigeria and kenya` → only first match used
+
+5. **Adjective Forms Not Fully Supported**
+   - `nigerian` may not resolve unless explicitly mapped
+   - `kenyan` has the same limitation
+
+6. **Ambiguous Queries**
+   - If no valid filters can be extracted the API returns an error object
+
+   ```json
+   {
+     "status": "error",
+     "message": "Unable to interpret query"
+   }
+   ```
+
+---
+
+#### Design Rationale
+
+- Ensure **predictable and testable behavior**
+- Avoid reliance on **external AI services**
+- Meet the requirement for **rule based parsing only**
+
+---
